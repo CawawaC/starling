@@ -11,6 +11,8 @@
 package starling.utils;
 
 import haxe.Constraints.Function;
+import lime.media.AudioBuffer;
+import lime.media.codecs.vorbis.VorbisFile;
 import openfl.display.Bitmap;
 import openfl.display.Loader;
 import openfl.display.LoaderInfo;
@@ -833,7 +835,12 @@ class AssetManager extends EventDispatcher
             {
                 onComplete();
             }
-            else if (Std.is(asset, Sound))
+			else if (Std.is(asset, AudioBuffer)) {
+				addObject(name, asset);
+				//trace("We have an audiobuffer " + name);
+				onComplete();
+			}
+            else if (Std.is(asset, Sound)/* || StringTools.endsWith(rawAsset, ".ogg")*/)
             {
                 addSound(name, cast asset);
                 onComplete();
@@ -891,6 +898,7 @@ class AssetManager extends EventDispatcher
             }
             else if (Std.is(asset, ByteArrayData))
             {
+				
                 bytes = cast asset;
                 
                 if (AtfData.isAtfData(bytes))
@@ -937,7 +945,7 @@ class AssetManager extends EventDispatcher
                         dispatchEventWith(Event.PARSE_ERROR, false, name);
                     }
 
-                    if (object) addObject(name, object);
+                    if (object != null) addObject(name, object);
 
                     bytes.clear();
                     onComplete();
@@ -1064,13 +1072,21 @@ class AssetManager extends EventDispatcher
             if (extension != null)
                 extension = extension.toLowerCase();
 
-            switch (extension)
+			switch (extension)
             {
-                case "mpeg", "mp3":
-                    sound = new Sound();
-                    sound.loadCompressedDataFromByteArray(bytes, bytes.length);
-                    bytes.clear();
-                    complete(sound);
+                case "mpeg", "mp3", "ogg":
+					if (bytes.length > 100000) {
+						//var ab = AudioBuffer.fromBytes(bytes);
+						var ab = AudioBuffer.fromVorbisFile(VorbisFile.fromFile(url));
+						//trace(ab);
+						bytes.clear();
+						complete(ab);
+					} else {
+						sound = new Sound();
+						sound.loadCompressedDataFromByteArray(bytes, bytes.length);
+						bytes.clear();
+						complete(sound);
+					}
                 case "jpg", "jpeg", "png", "gif":
                     var loaderContext:LoaderContext = new LoaderContext(__checkPolicyFile);
                     var loader:Loader = new Loader();

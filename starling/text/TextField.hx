@@ -189,7 +189,7 @@ class TextField extends DisplayObjectContainer
         // What should we do if one line is aligned to the left, another to the right?
 
         if (isHorizontalAutoSize && !_options.isHtmlText) width = 100000;
-        if (isVerticalAutoSize) height = 100000;
+        if (isVerticalAutoSize) height = 10000;
 
         _meshBatch.x = _meshBatch.y = 0;
         _options.textureScale = Starling.current.contentScaleFactor;
