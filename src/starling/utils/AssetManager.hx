@@ -861,7 +861,8 @@ class AssetManager extends EventDispatcher
                 onComplete();
             }
 			else if (Std.is(asset, AudioBuffer)) {
-				addObject(name, asset);
+				//addObject(name, asset);
+				addSound(name, cast asset);
 				//trace("We have an audiobuffer " + name);
 				onComplete();
 			}
@@ -1100,18 +1101,18 @@ class AssetManager extends EventDispatcher
 			switch (extension)
             {
                 case "mpeg", "mp3", "ogg":
-					if (bytes.length > 100000) {
+					/*if (bytes.length > 100000) {
 						//var ab = AudioBuffer.fromBytes(bytes);
 						var ab = AudioBuffer.fromVorbisFile(VorbisFile.fromFile(url));
 						//trace(ab);
 						bytes.clear();
 						complete(ab);
-					} else {
+					} else {*/
 						sound = new Sound();
 						sound.loadCompressedDataFromByteArray(bytes, bytes.length);
 						bytes.clear();
 						complete(sound);
-					}
+					//}
                 case "jpg", "jpeg", "png", "gif":
                     var loaderContext:LoaderContext = new LoaderContext(__checkPolicyFile);
                     var loader:Loader = new Loader();
