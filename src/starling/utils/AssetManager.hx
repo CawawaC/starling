@@ -136,6 +136,7 @@ class AssetManager extends EventDispatcher
     private var __numLoadingQueues:Int = 0;
 
     private var __defaultTextureOptions:TextureOptions;
+    private var __registerBitmapFontsWithFontFace:Bool;
     private var __checkPolicyFile:Bool;
     private var __keepAtlasXmls:Bool;
     private var __keepFontXmls:Bool;
@@ -149,6 +150,7 @@ class AssetManager extends EventDispatcher
     private var __xmls:Map<String, Xml>;
     private var __objects:Map<String, Dynamic>;
     private var __byteArrays:Map<String, ByteArray>;
+    private var __bitmapFonts:Map<String, BitmapFont>;
     
     /** helper objects */
     private static var sNames:Vector<String> = new Vector<String>();
@@ -188,6 +190,7 @@ class AssetManager extends EventDispatcher
         __xmls = new Map();
         __objects = new Map();
         __byteArrays = new Map();
+        __bitmapFonts = new Map();
         __numConnections = 3;
         __verbose = true;
         __queue = [];
@@ -214,6 +217,9 @@ class AssetManager extends EventDispatcher
         
         for (byteArray in __byteArrays)
             byteArray.clear();
+        
+        for (bitmapFont in __bitmapFonts)
+            bitmapFont.dispose();
     }
     
     // retrieving
@@ -337,6 +343,19 @@ class AssetManager extends EventDispatcher
         return getDictionaryKeys(__byteArrays, prefix, out);
     }
     
+    /** Returns a bitmaps font with a certain name, or null if it's not found. */
+    public function getBitmapFont(name:String):BitmapFont
+    {
+        return __bitmapFonts[name];
+    }
+
+    /** Returns all bitmap fonts names that start with a certain string, sorted alphabetically. 
+     * If you pass an <code>out</code>-vector, the names will be added to that vector. */
+    public function getBitmapFontNames(prefix:String="", out:Vector<String>=null):Vector<String>
+    {
+        return getDictionaryKeys(__bitmapFonts, prefix, out);
+    }
+    
     // direct adding
     
     /** Register a texture under a certain name. It will be available right away.
@@ -362,7 +381,7 @@ class AssetManager extends EventDispatcher
     {
         log("Adding texture atlas '" + name + "'");
         
-        if (__atlases.exists(name))
+        if (__atlases.exists(name) && atlas != __atlases[name])
         {
             log("Warning: name was already in use; the previous atlas will be replaced.");
             __atlases[name].dispose();
@@ -377,7 +396,7 @@ class AssetManager extends EventDispatcher
     {
         log("Adding sound '" + name + "'");
         
-        if (__sounds.exists(name))
+        if (__sounds.exists(name) && sound != __sounds[name])
             log("Warning: name was already in use; the previous sound will be replaced.");
 
         __sounds[name] = sound;
@@ -390,7 +409,7 @@ class AssetManager extends EventDispatcher
     {
         log("Adding XML '" + name + "'");
         
-        if (__xmls.exists(name))
+        if (__xmls.exists(name) && xml != __xmls[name])
         {
             log("Warning: name was already in use; the previous XML will be replaced.");
             #if 0
@@ -412,7 +431,7 @@ class AssetManager extends EventDispatcher
     {
         log("Adding object '" + name + "'");
         
-        if (__objects.exists(name))
+        if (__objects.exists(name) && object != __objects[name])
             log("Warning: name was already in use; the previous object will be replaced.");
         
         __objects[name] = object;
@@ -425,13 +444,33 @@ class AssetManager extends EventDispatcher
     {
         log("Adding byte array '" + name + "'");
         
-        if (__byteArrays.exists(name))
+        if (__byteArrays.exists(name) && byteArray != __byteArrays[name])
         {
             log("Warning: name was already in use; the previous byte array will be replaced.");
             __byteArrays[name].clear();
         }
         
         __byteArrays[name] = byteArray;
+    }
+    
+    /** Register a bitmap font under a certain name. It will be available right away.
+     *  If the name was already taken, the existing font will be disposed and replaced
+     *  by the new one.
+     *
+     *  <p>Note that the font is <strong>not</strong> registered at the TextField class.
+     *  This only happens when a bitmap font is loaded via the asset queue.</p>
+     */
+    public function addBitmapFont(name:String, font:BitmapFont):Void
+    {
+        log("Adding bitmap font '" + name + "'");
+
+        if (__bitmapFonts.exists(name) && font != __bitmapFonts[name])
+        {
+            log("Warning: name was already in use; the previous font will be replaced.");
+            __bitmapFonts[name].dispose();
+        }
+
+        __bitmapFonts[name] = font;
     }
     
     // removing
@@ -496,10 +535,21 @@ class AssetManager extends EventDispatcher
         __byteArrays.remove(name);
     }
     
+    /** Removes a certain bitmap font, optionally disposing it. */
+    public function removeBitmapFont(name:String, dispose:Bool=true):Void
+    {
+        log("Removing bitmap font '" + name + "'");
+
+        if (dispose && __bitmapFonts.exists(name))
+            __bitmapFonts[name].dispose();
+
+        __bitmapFonts.remove(name);
+    }
+    
     /** Empties the queue and aborts any pending load operations. */
     public function purgeQueue():Void
     {
-        ArrayUtil.clear(__queue);
+        __queue.splice(0, __queue.length);
         dispatchEventWith(Event.CANCEL);
     }
     
@@ -518,6 +568,7 @@ class AssetManager extends EventDispatcher
         __xmls = new Map<String, Xml>();
         __objects = new Map<String, Dynamic>();
         __byteArrays = new Map<String, ByteArray>();
+        __bitmapFonts = new Map<String, BitmapFont>();
     }
     
     // queued adding
@@ -611,20 +662,16 @@ class AssetManager extends EventDispatcher
     public function enqueueWithName(asset:Dynamic, name:String=null,
                                     options:TextureOptions=null):String
     {
-        var filename:String = null;
-        
-        #if air
-        if (Std.is(asset, flash.filesystem.File)) {
-            filename = Reflect.field(asset, "name");
-            asset = StringTools.urlDecode(Reflect.field(asset, "url"));
-        }
-        #end
-        
         if (name == null)    name = getName(asset);
         if (options == null) options = __defaultTextureOptions.clone();
         else                 options = options.clone();
         
-        log("Enqueuing '" + (filename != null ? filename : name) + "'");
+        log("Enqueuing '" + name + "'");
+        
+        #if air
+        if (Std.is(asset, flash.filesystem.File))
+            asset = StringTools.urlDecode(Reflect.field(asset, "url"));
+        #end
         
         __queue.push({
             name: name,
@@ -679,7 +726,6 @@ class AssetManager extends EventDispatcher
         var processXmls:Void->Void = null;
         var processXml:Int->Void = null;
         var finish:Void->Void = null;
-        var resume:Void->Void = null;
 
         loadNextQueueElement = function():Void
         {
@@ -748,47 +794,45 @@ class AssetManager extends EventDispatcher
                 return;
             }
 
-            var name:String;
             var texture:Texture;
+            var name:String;
+            var fontName:String;
             var xml:Xml = xmls[index];
             var rootNode:String = xml.nodeName;
             var xmlProgress:Float = (index + 1) / (xmls.length + 1);
+            var bitmapFont:BitmapFont;
 
             if (rootNode == "TextureAtlas")
             {
                 name = getName(xml.get("imagePath"));
                 texture = getTexture(name);
 
-                if (texture != null)
-                {
-                    addTextureAtlas(name, new TextureAtlas(texture, xml));
-                    removeTexture(name, false);
-
-                    if (__keepAtlasXmls) addXml(name, xml);
-                    #if 0
-                    else
-                        System.disposeXML(xml);
-                    #end
-                }
+                if (texture != null) addTextureAtlas(name, new TextureAtlas(texture, xml));
                 else log("Cannot create atlas: texture '" + name + "' is missing.");
+                    
+                if (__keepAtlasXmls) addXml(name, xml);
+                #if 0
+                else System.disposeXML(xml);
+                #end
             }
             else if (rootNode == "font")
             {
                 name = getName(xml.elementsNamed("pages").next().elementsNamed("page").next().get("file"));
+                fontName = __registerBitmapFontsWithFontFace ? xml.elementsNamed("info").next().get("face") : name;
                 texture = getTexture(name);
 
                 if (texture != null)
                 {
-                    log("Adding bitmap font '" + name + "'");
-                    TextField.registerCompositor(new BitmapFont(texture, xml), name);
-                    removeTexture(name, false);
-
-                    if (__keepFontXmls) addXml(name, xml);
-                    #if 0
-                    else System.disposeXML(xml);
-                    #end
+                    bitmapFont = new BitmapFont(texture, xml);
+                    addBitmapFont(fontName, bitmapFont);
+                    TextField.registerCompositor(bitmapFont, fontName);
                 }
                 else log("Cannot create bitmap font: texture '" + name + "' is missing.");
+                
+                if (__keepFontXmls) addXml(name, xml);
+                #if 0
+                else System.disposeXML(xml);
+                #end
             }
             else
                 throw new Error("XML contents not recognized: " + rootNode);
@@ -826,7 +870,8 @@ class AssetManager extends EventDispatcher
         for (i in 0...__numConnections)
             loadNextQueueElement();
 
-        ArrayUtil.clear(__queue);
+        __queue.splice(0, __queue.length);
+
         __numLoadingQueues++;
         addEventListener(Event.CANCEL, cancel);
     }
@@ -841,7 +886,7 @@ class AssetManager extends EventDispatcher
         var progress:Float->Void = null;
         var process:Dynamic->Void = null;
         
-        function process(asset:Dynamic):Void
+        process = function(asset:Dynamic):Void
         {
             var texture:Texture = null;
             var bytes:ByteArray;
@@ -1100,19 +1145,11 @@ class AssetManager extends EventDispatcher
 
 			switch (extension)
             {
-                case "mpeg", "mp3", "ogg":
-					/*if (bytes.length > 100000) {
-						//var ab = AudioBuffer.fromBytes(bytes);
-						var ab = AudioBuffer.fromVorbisFile(VorbisFile.fromFile(url));
-						//trace(ab);
-						bytes.clear();
-						complete(ab);
-					} else {*/
-						sound = new Sound();
-						sound.loadCompressedDataFromByteArray(bytes, bytes.length);
-						bytes.clear();
-						complete(sound);
-					//}
+                case "mpeg", "mp3", "ogg", "wav":
+                    sound = new Sound();
+                    sound.loadCompressedDataFromByteArray(bytes, bytes.length);
+                    bytes.clear();
+                    complete(sound);
                 case "jpg", "jpeg", "png", "gif":
                     var loaderContext:LoaderContext = new LoaderContext(__checkPolicyFile);
                     var loader:Loader = new Loader();
@@ -1405,6 +1442,13 @@ class AssetManager extends EventDispatcher
     public var numConnections(get, set):Int;
     private function get_numConnections():Int { return __numConnections; }
     private function set_numConnections(value:Int):Int { return __numConnections = value; }
+    
+    /** Indicates if bitmap fonts should be registered with their "face" attribute from the
+     *  font XML file. Per default, they are registered with the name of the texture file.
+     *  @default false */
+    public var registerBitmapFontsWithFontFace(get, set):Bool;
+    public function get_registerBitmapFontsWithFontFace():Bool { return __registerBitmapFontsWithFontFace; }
+    public function set_registerBitmapFontsWithFontFace(value:Bool):Bool { return __registerBitmapFontsWithFontFace = value; }
 }
 
 @:dox(hide) typedef QueuedAsset = {
