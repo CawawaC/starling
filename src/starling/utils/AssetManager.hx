@@ -906,8 +906,8 @@ class AssetManager extends EventDispatcher
                 onComplete();
             }
 			else if (Std.is(asset, AudioBuffer)) {
-				//addObject(name, asset);
-				addSound(name, cast asset);
+				addObject(name, asset);
+				//addSound(name, cast asset);
 				//trace("We have an audiobuffer " + name);
 				onComplete();
 			}
