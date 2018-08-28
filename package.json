@@ -1,6 +1,6 @@
 {
   "name": "starling-framework",
-  "version": "2.3.1",
+  "version": "2.4.1",
   "description": "A fast, productive library for 2D cross-platform development.",
   "keywords": [
     "starling",
@@ -34,24 +34,22 @@
     "url": "https://github.com/openfl/starling.git"
   },
   "scripts": {
-    "build": "npm run build-lib && npm run build-dist && npm run build-docs",
+    "build": "npm run build-lib && npm run build-dist && npm run build-swc && npm run build-docs",
     "build-dist": "npm run build-dist:dev && npm run build-dist:prod",
     "build-dist:dev": "webpack --config webpack.dev.js",
     "build-dist:prod": "webpack --config webpack.prod.js",
     "build-docs": "typedoc --out docs scripts/importAll.ts --allowJs --entryPoint starling --mode file --target es5 --module commonjs --plugins none --exclude \"**/{node_modules,samples}/**/*.ts\" --readme none --theme default --includeDeclarations --disableOutputCheck --ignoreCompilerErrors",
     "build-lib": "cd scripts && haxe build.hxml",
+    "build-swc": "compc -load-config=node_modules/@apache-royale/royale-js/royale-asjs/frameworks/js-config.xml -keep-as3-metadata=JSModule -include-sources=lib -compiler.targets=SWF -external-library-path+=node_modules/openfl/dist/openfl.swc -output=dist/starling.swc",
     "dev-link": "npm link openfl && npm link hxgenjs",
     "prepublishOnly": "npm run build",
     "serve": "http-server -c-1 --cors",
     "start": "npm run watch",
     "watch": "watch \"echo watch: Compiling... && npm run build-lib -s && echo watch: Compiled successfully.\" ./src ./scripts  ./node_modules/openfl/src"
   },
-  "config": {
-    "haxe": "3.4.4",
-    "haxelib_version": "3.2.0-rc.3"
-  },
   "devDependencies": {
-    "haxe": "^4.1.0",
+    "@apache-royale/royale-js": "^0.9.3",
+    "haxe": "^4.1.10",
     "hxgenjs": "kevinresol/hxgenjs",
     "typedoc": "^0.9.0",
     "typescript": "^2.7.1",
@@ -61,6 +59,9 @@
     "webpack-merge": "^4.1.1"
   },
   "dependencies": {
-    "openfl": "^7.1.2"
+    "openfl": "^8.1.1"
+  },
+  "haxeDependencies": {
+    "haxe": "3.4.4"
   }
 }

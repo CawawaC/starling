@@ -23,6 +23,8 @@ import starling.display.Sprite;
 import starling.events.TouchEvent;
 import starling.events.TouchPhase;
 import starling.text.TextField;
+import starling.text.TextFieldAutoSize;
+import starling.text.TextFormat;
 import starling.utils.Align;
 
 import utils.MenuButton;

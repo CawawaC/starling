@@ -37,6 +37,7 @@ import flash.system.ImageDecodingPolicy;
 #end
 import openfl.system.LoaderContext;
 import openfl.system.System;
+import openfl.utils.ByteArray;
 
 import haxe.Json;
 import haxe.Timer;
@@ -603,7 +604,11 @@ class AssetManager extends EventDispatcher
     {
         for (rawAsset in rawAssets)
         {
-            if (Std.is(rawAsset, Array))
+            if (rawAsset == null)
+            {
+                continue;
+            }
+            else if (Std.is(rawAsset, Array))
             {
                 enqueue(rawAsset);
             }
@@ -1081,7 +1086,7 @@ class AssetManager extends EventDispatcher
      * <p>When overriding this method, you can call 'onProgress' with a number between 0 and 1
      * to update the total queue loading progress.</p>
      */
-    private function loadRawAsset(rawAsset:Dynamic, onProgress:Float->Void, onComplete:Array<Dynamic>->Void):Void
+    private function loadRawAsset(rawAsset:Dynamic, onProgress:Float->Void, onComplete:Dynamic->Void):Void
     {
         var extension:String = null;
         var loaderInfo:LoaderInfo = null;
@@ -1131,7 +1136,7 @@ class AssetManager extends EventDispatcher
         
         onUrlLoaderComplete = function(event:Dynamic):Void
         {
-            var bytes:ByteArray = transformData(cast(urlLoader.data, ByteArray), url);
+            var bytes:ByteArray = transformData(Std.is(urlLoader.data, #if commonjs ByteArray #else ByteArrayData #end) ? cast urlLoader.data : null, url);
             var sound:Sound;
 
             if (bytes == null)
@@ -1205,7 +1210,7 @@ class AssetManager extends EventDispatcher
             if (SystemUtil.isDesktop)
                 onComplete(asset);
             else
-                SystemUtil.executeWhenApplicationIsActive(onComplete, asset);
+                SystemUtil.executeWhenApplicationIsActive(onComplete, [asset]);
             #else
             onComplete(asset);
             #end

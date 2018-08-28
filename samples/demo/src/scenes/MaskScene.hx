@@ -56,6 +56,7 @@ import starling.text.TextField;
 
         _mask2 = createCircle();
         _contents.mask = _mask2;
+        addChild(_mask2);
         
         addEventListener(TouchEvent.TOUCH, onTouch);
     }
