@@ -624,10 +624,7 @@ class Starling extends EventDispatcher
     public function stop(suspendRendering:Bool=false):Void
     { 
         __started = false;
-        // TODO: Enable this code when Stage3D in OpenFL does not require rendering
-        #if flash
         __rendering = !suspendRendering;
-        #end
     }
 
     /** Makes sure that the next frame is actually rendered.
@@ -834,7 +831,12 @@ class Starling extends EventDispatcher
         // standard display list is only rendered after calling "context.present()".
         // In such a case, we cannot omit frames if there is any content on the stage.
 
-        if (!__skipUnchangedFrames || __painter.shareContext #if !flash || true #end)
+        #if !flash
+        if (!Reflect.hasField (__nativeStage, "context3D") || Reflect.field (__nativeStage, "context3D") == context)
+            return true;
+        #end
+
+        if (!__skipUnchangedFrames || __painter.shareContext)
             return true;
         else if (SystemUtil.isDesktop && profile != Context3DProfile.BASELINE_CONSTRAINED)
             return false;
